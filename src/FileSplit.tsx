@@ -17,6 +17,7 @@ const FileSplit: React.FC = () => {
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [stats, setStats] = useState<FileStats | null>(null);
   const [progress, setProgress] = useState<string>('');
+  const [hubName, setHubName] = useState<string>('');
 
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -36,10 +37,15 @@ const FileSplit: React.FC = () => {
     if (files.length > 0) {
       const droppedFile = files[0];
       if (droppedFile.name.endsWith('.xlsx') || droppedFile.name.endsWith('.xls')) {
-        setFile(droppedFile);
-        setStatus('');
-        setStatusType('idle');
-        setStats(null);
+        // 弹窗询问 Hub/Sub-hub 名称
+        const hub = prompt('Please enter the Hub/Sub-hub:');
+        if (hub && hub.trim()) {
+          setHubName(hub.trim());
+          setFile(droppedFile);
+          setStatus('');
+          setStatusType('idle');
+          setStats(null);
+        }
       } else {
         setStatus('Please upload Excel file (.xlsx or .xls)');
         setStatusType('error');
@@ -50,10 +56,18 @@ const FileSplit: React.FC = () => {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
-      setFile(selectedFile);
-      setStatus('');
-      setStatusType('idle');
-      setStats(null);
+      // 弹窗询问 Hub/Sub-hub 名称
+      const hub = prompt('Please enter the Hub/Sub-hub:');
+      if (hub && hub.trim()) {
+        setHubName(hub.trim());
+        setFile(selectedFile);
+        setStatus('');
+        setStatusType('idle');
+        setStats(null);
+      } else {
+        // 如果用户取消或未输入，重置文件输入
+        e.target.value = '';
+      }
     }
   };
 
@@ -179,7 +193,8 @@ const FileSplit: React.FC = () => {
       const downloadLink = document.createElement('a');
       downloadLink.href = downloadUrl;
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-      downloadLink.download = `split_${file.name.replace(/\.[^/.]+$/, '')}_${timestamp}.zip`;
+      // 使用 hubName 作为文件名前缀
+      downloadLink.download = `${hubName}_split_${file.name.replace(/\.[^/.]+$/, '')}_${timestamp}.zip`;
       downloadLink.click();
       
       // Clean up URL
@@ -213,6 +228,7 @@ const FileSplit: React.FC = () => {
     setStatusType('idle');
     setStats(null);
     setProgress('');
+    setHubName('');
   };
 
   return (
@@ -221,7 +237,8 @@ const FileSplit: React.FC = () => {
         <div style={styles.description}>
           <h3 style={styles.descTitle}>📝 Instructions</h3>
           <ol style={styles.descList}>
-            <li>Upload an Excel file for single hub/sub-hub</li>
+            <li>Upload an Excel - Route Disptach Report</li>
+            <li>Enter the hub/sub-hub code</li>
             <li>Generate separate Excel files for each FleetName</li>
             <li>All files will be packaged into a ZIP for download</li>
           </ol>
@@ -255,6 +272,11 @@ const FileSplit: React.FC = () => {
               <div style={styles.fileSize}>
                 {(file.size / 1024).toFixed(2)} KB
               </div>
+              {hubName && (
+                <div style={styles.hubInfo}>
+                  Hub/Sub-hub: <strong>{hubName}</strong>
+                </div>
+              )}
             </>
           )}
           
@@ -426,6 +448,11 @@ const styles: Record<string, React.CSSProperties> = {
   fileSize: {
     color: '#666',
     fontSize: '0.9rem',
+  },
+  hubInfo: {
+    marginTop: '10px',
+    color: '#667eea',
+    fontSize: '0.95rem',
   },
   fileInput: {
     display: 'none',
