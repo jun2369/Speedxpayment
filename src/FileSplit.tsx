@@ -114,12 +114,24 @@ const FileSplit: React.FC = () => {
         return;
       }
 
+      // 过滤只保留 FinalStatus = DELIVERED 的数据
+      const deliveredData = jsonData.filter((row: any) => {
+        return String(row.FinalStatus || '').toUpperCase().trim() === 'DELIVERED';
+      });
+
+      if (deliveredData.length === 0) {
+        setStatus('No records with FinalStatus = DELIVERED found');
+        setStatusType('error');
+        setProgress('');
+        return;
+      }
+
       setStatus('Grouping data...');
       setProgress('50%');
 
-      // Group by FleeName
+      // Group by FleeName (只对 DELIVERED 的数据分组)
       const groupedData: Record<string, any[]> = {};
-      jsonData.forEach((row: any) => {
+      deliveredData.forEach((row: any) => {
         const fleeName = String(row.FleeName || 'undefined').trim();
         if (!groupedData[fleeName]) {
           groupedData[fleeName] = [];
@@ -192,22 +204,21 @@ const FileSplit: React.FC = () => {
       const downloadUrl = URL.createObjectURL(zipContent);
       const downloadLink = document.createElement('a');
       downloadLink.href = downloadUrl;
-      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-      // 使用 hubName 作为文件名前缀
-      downloadLink.download = `${hubName}_split_${file.name.replace(/\.[^/.]+$/, '')}_${timestamp}.zip`;
+      // 只使用 hubName 作为文件名
+      downloadLink.download = `${hubName}.zip`;
       downloadLink.click();
       
       // Clean up URL
       setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
       
-      // Display statistics
+      // Display statistics (显示过滤后的统计)
       setStats({
-        totalRows: jsonData.length,
+        totalRows: deliveredData.length,
         uniqueFiles: fileCount,
         fileNames: Object.keys(groupedData).slice(0, 10) // Show first 10 only
       });
       
-      setStatus(`Success! Generated ${fileCount} Excel files and packaged as ZIP`);
+      setStatus(`Success! Generated ${fileCount} Excel files (DELIVERED only) and packaged as ZIP`);
       setStatusType('success');
       setProgress('100%');
       
@@ -344,7 +355,7 @@ const FileSplit: React.FC = () => {
             <h3 style={styles.statsTitle}>📊 Processing Statistics</h3>
             <div style={styles.statsGrid}>
               <div style={styles.statItem}>
-                <div style={styles.statLabel}>Total Rows</div>
+                <div style={styles.statLabel}>Total Rows (DELIVERED)</div>
                 <div style={styles.statValue}>{stats.totalRows}</div>
               </div>
               <div style={styles.statItem}>
