@@ -6,6 +6,7 @@ interface FileStats {
   totalRows: number;
   uniqueFiles: number;
   fileNames: string[];
+  fileData?: Record<string, any[]>; // 存储每个文件的数据
 }
 
 type StatusType = 'idle' | 'processing' | 'success' | 'error';
@@ -215,7 +216,8 @@ const FileSplit: React.FC = () => {
       setStats({
         totalRows: deliveredData.length,
         uniqueFiles: fileCount,
-        fileNames: Object.keys(groupedData).slice(0, 10) // Show first 10 only
+        fileNames: Object.keys(groupedData), // Show all file names
+        fileData: groupedData // 保存文件数据用于复制功能
       });
       
       setStatus(`Success! Generated ${fileCount} Excel files (DELIVERED only) and packaged as ZIP`);
@@ -231,6 +233,44 @@ const FileSplit: React.FC = () => {
       setStatusType('error');
       setProgress('');
     }
+  };
+
+  const handleCopyData = (fleeName: string) => {
+    if (!stats?.fileData || !stats.fileData[fleeName]) return;
+    
+    const data = stats.fileData[fleeName];
+    
+    // 移除 sync time 和 planDeliveryDate 列
+    const filteredData = data.map(row => {
+      const newRow = { ...row };
+      delete newRow['sync time'];
+      delete newRow['planDeliveryDate'];
+      return newRow;
+    });
+    
+    // 转换为制表符分隔的文本（不包含表头）
+    const rows = filteredData.map(row => {
+      return Object.values(row).join('\t');
+    });
+    
+    const textToCopy = rows.join('\n');
+    
+    // 复制到剪贴板
+    navigator.clipboard.writeText(textToCopy).then(() => {
+      // 显示复制成功的反馈
+      const button = document.querySelector(`[data-filename="${fleeName}"]`) as HTMLButtonElement;
+      if (button) {
+        const originalText = button.textContent;
+        button.textContent = '✓';
+        button.style.background = '#28a745';
+        setTimeout(() => {
+          button.textContent = originalText;
+          button.style.background = '#667eea';
+        }, 1500);
+      }
+    }).catch(err => {
+      console.error('Failed to copy:', err);
+    });
   };
 
   const resetFile = () => {
@@ -368,14 +408,17 @@ const FileSplit: React.FC = () => {
                 <div style={styles.fileListTitle}>File Name Preview:</div>
                 {stats.fileNames.map((name, index) => (
                   <div key={index} style={styles.fileListItem}>
-                    • {name}.xlsx
+                    <span>• {name}.xlsx</span>
+                    <button
+                      data-filename={name}
+                      style={styles.copyBtn}
+                      onClick={() => handleCopyData(name)}
+                      title="Copy data (excluding headers)"
+                    >
+                      Copy
+                    </button>
                   </div>
                 ))}
-                {stats.uniqueFiles > 10 && (
-                  <div style={styles.fileListMore}>
-                    ... and {stats.uniqueFiles - 10} more files
-                  </div>
-                )}
               </div>
             )}
           </div>
@@ -585,6 +628,19 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#333',
     padding: '5px 0',
     fontSize: '0.9rem',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  copyBtn: {
+    padding: '4px 12px',
+    fontSize: '0.8rem',
+    background: '#667eea',
+    color: 'white',
+    border: 'none',
+    borderRadius: '4px',
+    cursor: 'pointer',
+    transition: 'all 0.3s ease',
   },
   fileListMore: {
     color: '#999',
